@@ -1,0 +1,134 @@
+server:
+  address: 127.0.0.1
+
+spring:
+  datasource:
+    hikari:
+      jdbc-url: ${PREPARED_DB_JDBC_URL:jdbc:mysql://127.0.0.1:13317/prepared_interview?useUnicode=true&characterEncoding=UTF-8&sslMode=REQUIRED&serverTimezone=Asia/Shanghai}
+      maximum-pool-size: 20
+      minimum-idle: 2
+      connection-timeout: 5000
+      validation-timeout: 3000
+    url: ${spring.datasource.hikari.jdbc-url}
+    username: ${PREPARED_DB_USERNAME}
+    password: ${PREPARED_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${PREPARED_REDIS_HOST:127.0.0.1}
+      port: ${PREPARED_REDIS_PORT:16389}
+      database: 1
+      password: ${PREPARED_REDIS_PASSWORD:}
+      timeout: 3000
+
+dashscope:
+  base-url: ${PREPARED_DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+  api-key: ${PREPARED_DASHSCOPE_API_KEY:}
+  enable-thinking: false
+  realtime:
+    enabled: false
+    voice-output-enabled: false
+  models:
+    text: ${PREPARED_TEXT_MODEL:qwen3.6-plus}
+    structured: ${PREPARED_SCORING_MODEL:qwen3.7-plus}
+    omni: ${PREPARED_AUDIO_MODEL:qwen3-omni-flash}
+    doc: qwen-long
+  audio:
+    voice: Cherry
+    format: wav
+
+aliyun:
+  oss:
+    endpoint: ${PREPARED_OSS_ENDPOINT:oss-cn-beijing.aliyuncs.com}
+    accessKeyId: ${PREPARED_OSS_ACCESS_KEY_ID:}
+    accessKeySecret: ${PREPARED_OSS_ACCESS_KEY_SECRET:}
+    bucketName: ${PREPARED_OSS_BUCKET:prepared-interview-local}
+
+jetcache:
+  statIntervalMinutes: 15
+  areaInCacheName: false
+  local:
+    default:
+      type: caffeine
+      keyConvertor: jackson
+      limit: 100
+      expireAfterWriteInMillis: 60000
+
+# Legacy absent-marking/scoring/retention must not mutate prepared attempts.
+scheduler:
+  start: stop
+data-retention:
+  enabled: false
+
+prepared:
+  deployment-id: ${PREPARED_DEPLOYMENT_ID:prepared-local}
+  interview:
+    # Closed until authorized capture, actual upload and server confirmation form one verified flow.
+    workflow-enabled: ${PREPARED_INTERVIEW_WORKFLOW_ENABLED:false}
+  models:
+    enabled: ${PREPARED_MODELS_ENABLED:false}
+    test-budget-cny: ${PREPARED_MODEL_TEST_BUDGET_CNY:100}
+    pause-cny: ${PREPARED_MODEL_TEST_PAUSE_CNY:80}
+    budget-scope: prepared-model-tests
+  generation:
+    worker-enabled: ${PREPARED_GENERATION_WORKER_ENABLED:false}
+    api-key: ${PREPARED_DASHSCOPE_API_KEY:}
+    endpoint: ${PREPARED_GENERATION_ENDPOINT:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
+    model: ${PREPARED_TEXT_MODEL:qwen3.6-plus}
+    billing-reference: ${PREPARED_GENERATION_BILLING_REFERENCE:}
+    pricing-reference: ${PREPARED_GENERATION_PRICING_REFERENCE:}
+    pricing-verified-at: ${PREPARED_GENERATION_PRICING_VERIFIED_AT:}
+    max-billed-input-tokens: ${PREPARED_GENERATION_MAX_BILLED_INPUT_TOKENS:}
+    max-billed-output-tokens: ${PREPARED_GENERATION_MAX_BILLED_OUTPUT_TOKENS:}
+    input-cny-per-million: ${PREPARED_GENERATION_INPUT_PRICE_CNY:}
+    output-cny-per-million: ${PREPARED_GENERATION_OUTPUT_PRICE_CNY:}
+  upload:
+    supplemental-window: PT24H
+  asr:
+    worker-enabled: ${PREPARED_ASR_WORKER_ENABLED:false}
+    api-key: ${PREPARED_ASR_API_KEY:}
+    endpoint: ${PREPARED_ASR_ENDPOINT:https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription}
+    model: qwen3-asr-flash-filetrans
+    billing-reference: ${PREPARED_ASR_BILLING_REFERENCE:}
+    pricing-reference: ${PREPARED_ASR_PRICING_REFERENCE:}
+    pricing-verified-at: ${PREPARED_ASR_PRICING_VERIFIED_AT:}
+    cny-per-second: ${PREPARED_ASR_PRICE_CNY_PER_SECOND:}
+  scoring:
+    worker-enabled: ${PREPARED_SCORE_WORKER_ENABLED:false}
+    api-key: ${PREPARED_SCORE_API_KEY:}
+    endpoint: ${PREPARED_SCORE_ENDPOINT:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
+    model: ${PREPARED_SCORE_MODEL:qwen3.6-plus}
+    billing-reference: ${PREPARED_SCORE_BILLING_REFERENCE:}
+    pricing-reference: ${PREPARED_SCORE_PRICING_REFERENCE:}
+    pricing-verified-at: ${PREPARED_SCORE_PRICING_VERIFIED_AT:}
+    verified-context-token-limit: ${PREPARED_SCORE_VERIFIED_CONTEXT_TOKEN_LIMIT:}
+    max-billed-input-tokens: ${PREPARED_SCORE_MAX_BILLED_INPUT_TOKENS:}
+    max-billed-output-tokens: ${PREPARED_SCORE_MAX_BILLED_OUTPUT_TOKENS:}
+    input-cny-per-million: ${PREPARED_SCORE_INPUT_PRICE_CNY:}
+    output-cny-per-million: ${PREPARED_SCORE_OUTPUT_PRICE_CNY:}
+  speech:
+    worker-enabled: ${PREPARED_TTS_WORKER_ENABLED:false}
+    assembly-worker-enabled: ${PREPARED_AUDIO_ASSEMBLY_ENABLED:false}
+    api-key: ${PREPARED_TTS_API_KEY:}
+    endpoint: https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation
+    model: qwen3-tts-flash
+    voice: Cherry
+    language: Chinese
+    billing-reference: ${PREPARED_TTS_BILLING_REFERENCE:}
+    pricing-reference: ${PREPARED_TTS_PRICING_REFERENCE:}
+    pricing-verified-at: ${PREPARED_TTS_PRICING_VERIFIED_AT:}
+    max-billed-characters: ${PREPARED_TTS_MAX_BILLED_CHARACTERS:}
+    cny-per-ten-thousand-characters: ${PREPARED_TTS_PRICE_CNY:}
+    spool-root: ${PREPARED_TTS_SPOOL_ROOT:}
+  storage:
+    enabled: ${PREPARED_PRIVATE_STORAGE_ENABLED:false}
+    endpoint: ${PREPARED_PRIVATE_STORAGE_ENDPOINT:}
+    bucket: ${PREPARED_PRIVATE_STORAGE_BUCKET:}
+    access-key-id: ${PREPARED_PRIVATE_STORAGE_ACCESS_KEY_ID:}
+    access-key-secret: ${PREPARED_PRIVATE_STORAGE_ACCESS_KEY_SECRET:}
+  retention:
+    audio: P180D
+    # Calendar periods, not Duration.ofDays(365); calculation never authorizes deletion.
+    results: P1Y
+    cleanup-audit: P1Y
+    time-zone: Asia/Shanghai

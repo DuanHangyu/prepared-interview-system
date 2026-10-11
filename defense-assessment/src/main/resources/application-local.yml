@@ -1,0 +1,74 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 120000
+      max-lifetime: 120000
+      connection-timeout: 10000
+      keepalive-time: 60000
+      auto-commit: true
+      validation-timeout: 3000
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: ${DB_JDBC_URL:jdbc:mysql://127.0.0.1:13307/defense_test?useUnicode=true&characterEncoding=UTF-8&useSSL=false&zeroDateTimeBehavior=convertToNull&useTimezone=true&serverTimezone=GMT%2B8}
+    url: ${spring.datasource.jdbc-url}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      database: 0
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 5000
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1ms
+          max-idle: 4
+          min-idle: 2
+          time-between-eviction-runs: 30s
+
+dashscope:
+  base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  api-key: ${DASHSCOPE_API_KEY:}
+  enable-thinking: ${DASHSCOPE_ENABLE_THINKING:false}
+  realtime:
+    enabled: ${DASHSCOPE_REALTIME_ENABLED:true}
+    url: ${DASHSCOPE_REALTIME_URL:wss://dashscope.aliyuncs.com/api-ws/v1/realtime}
+    model: ${DASHSCOPE_REALTIME_MODEL:qwen3.5-omni-flash-realtime}
+    voice: ${DASHSCOPE_REALTIME_VOICE:Ethan}
+    transcript-wait-ms: ${DASHSCOPE_REALTIME_TRANSCRIPT_WAIT_MS:5000}
+    response-wait-ms: ${DASHSCOPE_REALTIME_RESPONSE_WAIT_MS:20000}
+    voice-output-enabled: ${DASHSCOPE_REALTIME_VOICE_OUTPUT_ENABLED:true}
+    voice-output-wait-ms: ${DASHSCOPE_REALTIME_VOICE_OUTPUT_WAIT_MS:12000}
+  models:
+    text: qwen3.6-plus
+    structured: ${DASHSCOPE_STRUCTURED_MODEL:qwen3.7-plus}
+    omni: qwen3-omni-flash
+    doc: qwen-long
+  audio:
+    voice: Cherry
+    format: wav
+
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT:oss-ap-southeast-1.aliyuncs.com}
+    accessKeyId: ${ALIYUN_OSS_ACCESS_KEY_ID:}
+    accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:}
+    bucketName: ${ALIYUN_OSS_BUCKET:defense-assessment-new}
+
+jetcache:
+  statIntervalMinutes: 15
+  areaInCacheName: false
+  local:
+    default:
+      type: caffeine
+      keyConvertor: jackson
+      limit: 100
+      expireAfterWriteInMillis: 60000
+
+# 启用后台定时任务（评分失败重试 schedulerCheckAnalysis、缺勤标记 schedulerCheckStudentAppointment）。
+# 缺省值为 stop（任务空跑）；改为 start 才会真正执行。
+scheduler:
+  start: ${SCHEDULER_START:stop}

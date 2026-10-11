@@ -1,0 +1,40 @@
+.DS_Store
+*.log
+.env.local
+.env.compose
+.env.*.local
+.run/
+
+# Local tooling output
+.playwright-mcp/
+.subrepo-git-backups/
+
+# Backend
+defense-assessment/target/
+defense-assessment/logs/
+defense-assessment/.idea/
+defense-assessment/.vscode/
+defense-assessment/*.iml
+
+# Frontend
+defense-system/node_modules/
+defense-system/dist/
+defense-system/dist-ssr/
+defense-system/.idea/
+defense-system/.vscode/
+defense-system/*.local
+defense-system/*.iml
+.gstack/
+.runtime/
+
+# Private local maintenance evidence; not application source or handoff content.
+/maintenance-package-qa-IzC26Z/
+/maintenance-qa-vlfHIy/
+/defense-system/.cache/
+/defense-system/coverage/
+/defense-system/playwright-report/
+/defense-system/test-results/
+
+# Private source-copy materials excluded from the public handoff snapshot.
+/deliverables/
+/docs/images/admin-dashboard.png

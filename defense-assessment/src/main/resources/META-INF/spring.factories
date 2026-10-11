@@ -1,0 +1,1 @@
+org.springframework.boot.env.EnvironmentPostProcessor=system.assessment.defense.prepared.config.PreparedEnvironmentGuard

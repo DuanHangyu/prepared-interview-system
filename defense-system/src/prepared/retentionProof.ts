@@ -1,0 +1,23 @@
+import type { RetentionScope,RetentionCommand,RetentionReceipt,RetentionView } from '@/api/preparedRetention';
+const check=(valid:unknown):void=>{if(!valid)throw Error('原留存保护范围、状态或回执无法核验，请保留原请求并重新读取');};
+const object=(value:unknown):Record<string,unknown>=>{check(value!==null&&typeof value==='object'&&!Array.isArray(value));return value as Record<string,unknown>;};
+const exact=(value:Record<string,unknown>,keys:string)=>check(Object.keys(value).sort().join(',')===keys);
+const id=(value:unknown)=>{check(typeof value==='number'&&Number.isSafeInteger(value)&&value>0&&value<=2147483647);return value as number;};
+const uuid=(value:unknown)=>{check(typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value));return value as string;};
+const revision=(value:unknown,increment=false)=>{check(typeof value==='number'&&Number.isSafeInteger(value)&&value>=0&&value<=Number.MAX_SAFE_INTEGER&&(increment?value<Number.MAX_SAFE_INTEGER:true));return value as number;};
+const text=(value:unknown)=>{check(typeof value==='string'&&value.length<=1000&&!!value.trim()&&!/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value));const s=value as string;
+  for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);if(c>=0xd800&&c<=0xdbff){check(i+1<s.length&&s.charCodeAt(i+1)>=0xdc00&&s.charCodeAt(i+1)<=0xdfff);i++;}else check(c<0xdc00||c>0xdfff);}return s;};
+const time=(value:unknown)=>{check(typeof value==='string'&&/^[1-9]\d{3}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value));const s=value as string,date=new Date(s);check(Number.isFinite(date.getTime()));check(date.toISOString()===s.replace(/(?:\.(\d{1,3}))?Z$/,(_m,d)=>'.'+(d??'').padEnd(3,'0')+'Z'));return s;};
+export function checkRetentionScope(input:unknown):RetentionScope{const s=object(input);return {actorId:id(s.actorId),studentId:id(s.studentId),assessmentId:id(s.assessmentId),attemptId:uuid(s.attemptId)};}
+export function copyRetentionCommand(input:unknown):RetentionCommand{const c=object(input);exact(c,'action,expectedRevision,idempotencyKey,reason');check(c.action==='PROTECT'||c.action==='RELEASE');return {idempotencyKey:uuid(c.idempotencyKey),expectedRevision:revision(c.expectedRevision,true),action:c.action as RetentionCommand['action'],reason:text(c.reason)};}
+function receipt(input:unknown):RetentionReceipt{const r=object(input);exact(r,'action,actorId,assessmentId,attemptId,audioState,executedAt,expectedRevision,held,id,idempotencyKey,reason,resultsState,revision,studentId');
+  const s=checkRetentionScope(r),c=copyRetentionCommand({idempotencyKey:r.idempotencyKey,expectedRevision:r.expectedRevision,action:r.action,reason:r.reason});check(revision(r.revision)===c.expectedRevision+1&&r.held===(c.action==='PROTECT'));check((r.audioState==='RETAINED'||r.audioState==='RETIRED')&&r.resultsState==='RETAINED');
+  return {...s,...c,id:uuid(r.id),revision:r.revision as number,held:r.held as boolean,executedAt:time(r.executedAt),audioState:r.audioState as RetentionReceipt['audioState'],resultsState:'RETAINED'};
+}
+const resource=(a:RetentionScope,b:RetentionScope)=>check(a.studentId===b.studentId&&a.assessmentId===b.assessmentId&&a.attemptId===b.attemptId);
+export function checkRetentionReceipt(input:unknown,scope:RetentionScope,original:RetentionCommand):RetentionReceipt{const s=checkRetentionScope(scope),c=copyRetentionCommand(original),r=receipt(input);resource(r,s);check(r.actorId===s.actorId);check(r.action===c.action&&r.expectedRevision===c.expectedRevision&&r.idempotencyKey===c.idempotencyKey&&r.reason===c.reason);return r;}
+export function checkRetentionView(input:unknown,scope:RetentionScope):RetentionView{const v=object(input);exact(v,'actorId,assessmentId,attemptId,audioState,held,latest,mayChange,resultsState,revision,serverNow,studentId');const s=checkRetentionScope(v),expected=checkRetentionScope(scope);resource(s,expected);check(s.actorId===expected.actorId);const rev=revision(v.revision);check(typeof v.held==='boolean'&&typeof v.mayChange==='boolean');
+  check(v.audioState==='RETAINED'||v.audioState==='RETIRING'||v.audioState==='RETIRED');check(v.resultsState==='RETAINED'||v.resultsState==='RETIRING');check(!v.held||(v.audioState!=='RETIRING'&&v.resultsState==='RETAINED'));check(v.mayChange===(v.audioState!=='RETIRING'&&v.resultsState==='RETAINED'&&rev<Number.MAX_SAFE_INTEGER));
+  const latest=v.latest===null?null:receipt(v.latest);if(latest){resource(latest,s);check(latest.revision<=rev&&latest.held===v.held);}else check(!v.held);
+  return {...s,revision:rev,held:v.held as boolean,audioState:v.audioState as RetentionView['audioState'],resultsState:v.resultsState as RetentionView['resultsState'],mayChange:v.mayChange as boolean,serverNow:time(v.serverNow),latest};
+}

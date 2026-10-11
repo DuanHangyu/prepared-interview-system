@@ -1,0 +1,141 @@
+spring:
+  jackson:
+    time-zone: ${APP_TIME_ZONE:Asia/Shanghai}
+    deserialization:
+      fail-on-unknown-properties: false
+      accept-empty-string-as-null-object: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+  application:
+    name: prepared-interview-system
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:prepared-local}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 1
+    validate-on-migrate: true
+    clean-disabled: true
+
+server:
+  port: ${PREPARED_BACKEND_PORT:13014}
+  tomcat:
+    max-http-form-post-size: 21MB
+    threads:
+      max: 400
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db,redis
+
+security:
+  websocket:
+    allowed-origins: ${PREPARED_ALLOWED_ORIGINS:http://localhost:13015,http://127.0.0.1:13015}
+
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    url: /v3/api-docs
+  webjars:
+    prefix: /webjars
+
+mybatis-plus:
+  type-aliases-package: system.assessment.defense.infrastructure.repository.dao.po
+  configuration:
+    map-underscore-to-camel-case: true # 启用驼峰映射
+  global-config:
+    db-config:
+      id-type: auto # 主键自增策略
+      logic-delete-field: deleted
+      logic-delete-value: 1 # 逻辑已删除值 默认1
+      logic-not-delete-value: 0
+
+############## Sa-Token 配置 (文档: https://sa-token.cc) ##############
+sa-token:
+  # 浏览器会话仅通过 HttpOnly Cookie 传递，前端 JavaScript 不接触凭证。
+  token-name: prepared-interview-session
+  # token 前缀
+  token-prefix: Bearer
+  # token 有效期（单位：秒） 默认1天，-1 代表永久有效
+  timeout: 86400
+  # token 最低活跃频率（单位：秒），如果 token 超过此时间没有访问系统就会被冻结，默认-1 代表不限制，永不冻结
+  active-timeout: -1
+  # 是否允许同一账号多地同时登录 （为 true 时允许一起登录, 为 false 时新登录挤掉旧登录）
+  is-concurrent: false
+  # 在多人登录同一账号时，是否共用一个 token （为 true 时所有登录共用一个 token, 为 false 时每次登录新建一个 token）
+  is-share: false
+  # token 风格（默认可取值：uuid、simple-uuid、random-32、random-64、random-128、tik）
+  token-style: random-64
+  # 是否输出操作日志
+  is-log: false
+  is-read-header: false
+  is-read-body: false
+  is-read-cookie: true
+  is-write-header: false
+  cookie-auto-fill-prefix: true
+  cookie:
+    path: /
+    secure: ${AUTH_COOKIE_SECURE:false}
+    http-only: true
+    same-site: Strict
+
+logging:
+  retention:
+    max-file-size: ${LOG_MAX_FILE_SIZE:50MB}
+    max-history: ${LOG_MAX_HISTORY_DAYS:14}
+    total-size-cap: ${LOG_TOTAL_SIZE_CAP:1GB}
+  level:
+    root: info
+#    system.assessment.defense.infrastructure.repository.dao.mapper: debug
+
+interview:
+  memory:
+    # PCM 原始音频约 32KB/秒；单会话和全局双重限制防止长连接耗尽堆内存。
+    max-audio-bytes-per-session: ${INTERVIEW_MAX_AUDIO_BYTES_PER_SESSION:67108864}
+    max-total-audio-bytes: ${INTERVIEW_MAX_TOTAL_AUDIO_BYTES:268435456}
+    max-audio-sessions: ${INTERVIEW_MAX_AUDIO_SESSIONS:256}
+    # 题目与追问两个本地缓存各自允许的近似字符权重。
+    max-cache-weight: ${INTERVIEW_MAX_CACHE_WEIGHT:1048576}
+    expire-after-access: ${INTERVIEW_CACHE_EXPIRE_AFTER_ACCESS:PT3H}
+
+file:
+  download:
+    # Covers the largest accepted interview WAV while bounding unknown/chunked OSS responses.
+    max-bytes: ${FILE_DOWNLOAD_MAX_BYTES:73400320}
+
+data-retention:
+  enabled: ${DATA_RETENTION_ENABLED:true}
+  token-audit: ${TOKEN_AUDIT_RETENTION:P30D}
+  interview-media: ${INTERVIEW_MEDIA_RETENTION:P180D}
+  deleted-assessment-material: ${DELETED_ASSESSMENT_MATERIAL_RETENTION:P30D}
+  business-record: ${BUSINESS_RECORD_RETENTION:P730D}
+  purge-business-records: ${PURGE_BUSINESS_RECORDS:false}
+  batch-size: ${RETENTION_CLEANUP_BATCH_SIZE:100}
+  max-batches-per-run: ${RETENTION_MAX_BATCHES_PER_RUN:10}
+  cleanup-cron: ${RETENTION_CLEANUP_CRON:0 30 3 * * ?}
+
+## 阿里云oss存储
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT:oss-ap-southeast-1.aliyuncs.com}
+    accessKeyId: ${ALIYUN_OSS_ACCESS_KEY_ID:}
+    accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:}
+    bucketName: ${ALIYUN_OSS_BUCKET:defense-assessment-new}

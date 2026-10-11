@@ -1,0 +1,13 @@
+import request from '@/utils/request';
+export type AudioCommand={expectedRevision:number;idempotencyKey:string;questionId:string;expectedConfigurationSha256:string};
+export type AudioRecovery={expectedRevision:number;idempotencyKey:string};
+export type AudioView={id:string;questionId:string;bodySha256:string;jobId:string;state:'GENERATING'|'FAILED'|'READY';partCount:number;completedParts:number;newPartCount:number;
+  maximumNewCostCny:number;errorCode:string|null;assemblyRecoverable:boolean;byteSize:number|null;durationMs:number|null;createdAt:string};
+export type AudioListing={assessmentId:number;draftRevision:number;frozen:boolean;availability:{enabled:boolean;reason:string;confirmationSha256:string|null;model:string|null;voice:string|null;maximumPartCostCny:number|null};current:AudioView[];history:AudioView[]};
+export type AudioPreview={url:string;expiresAt:string};
+type Response<T>={data:T};
+const path=(id:number)=>`/backend/prepared-papers/${id}/audio`;
+export const getPreparedAudio=(id:number)=>request<unknown,Response<AudioListing>>({url:path(id),method:'get'});
+export const prepareQuestionAudio=(id:number,data:AudioCommand)=>request<unknown,Response<AudioView>>({url:path(id),method:'post',data});
+export const recoverQuestionAudio=(id:number,asset:string,data:AudioRecovery)=>request<unknown,Response<AudioView>>({url:`${path(id)}/${asset}/recover`,method:'post',data});
+export const getAudioPreview=(id:number,asset:string)=>request<unknown,Response<AudioPreview>>({url:`${path(id)}/${asset}/preview`,method:'get'});

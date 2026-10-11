@@ -1,0 +1,169 @@
+name: ai-interview-system
+
+x-runtime-db-environment: &runtime-db-environment
+  DB_JDBC_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-defense}?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia%2FShanghai&allowPublicKeyRetrieval=true
+  DB_USERNAME: ${MYSQL_USER:-defense_app}
+  DB_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env.compose}
+
+x-backend-environment: &backend-environment
+  <<: *runtime-db-environment
+  SPRING_PROFILES_ACTIVE: prod
+  SPRING_FLYWAY_ENABLED: "false"
+  SPRINGDOC_ENABLED: ${SPRINGDOC_ENABLED:-false}
+  APP_TIME_ZONE: Asia/Shanghai
+  TZ: Asia/Shanghai
+  JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env.compose}
+  WEBSOCKET_ALLOWED_ORIGINS: ${PUBLIC_ORIGIN:-http://localhost:3004}
+  AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+  DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:?set DASHSCOPE_API_KEY in .env.compose}
+  DASHSCOPE_REALTIME_MAX_EVENT_CHARS: ${DASHSCOPE_REALTIME_MAX_EVENT_CHARS:-1048576}
+  DASHSCOPE_REALTIME_MAX_TRANSCRIPT_CHARS: ${DASHSCOPE_REALTIME_MAX_TRANSCRIPT_CHARS:-20000}
+  DASHSCOPE_REALTIME_MAX_RESPONSE_AUDIO_BYTES: ${DASHSCOPE_REALTIME_MAX_RESPONSE_AUDIO_BYTES:-16777216}
+  FILE_DOWNLOAD_MAX_BYTES: ${FILE_DOWNLOAD_MAX_BYTES:-73400320}
+  ALIYUN_OSS_ENDPOINT: ${ALIYUN_OSS_ENDPOINT:?set ALIYUN_OSS_ENDPOINT in .env.compose}
+  ALIYUN_OSS_ACCESS_KEY_ID: ${ALIYUN_OSS_ACCESS_KEY_ID:?set ALIYUN_OSS_ACCESS_KEY_ID in .env.compose}
+  ALIYUN_OSS_ACCESS_KEY_SECRET: ${ALIYUN_OSS_ACCESS_KEY_SECRET:?set ALIYUN_OSS_ACCESS_KEY_SECRET in .env.compose}
+  ALIYUN_OSS_BUCKET: ${ALIYUN_OSS_BUCKET:?set ALIYUN_OSS_BUCKET in .env.compose}
+
+x-migration-environment: &migration-environment
+  DB_JDBC_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-defense}?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia%2FShanghai&allowPublicKeyRetrieval=true
+  DB_USERNAME: root
+  DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env.compose}
+  TZ: Asia/Shanghai
+  JAVA_TOOL_OPTIONS: -Duser.timezone=Asia/Shanghai
+
+x-json-logging: &json-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  mysql:
+    image: mysql:8.4.10
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-defense}
+      MYSQL_USER: ${MYSQL_USER:-defense_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env.compose}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env.compose}
+      MYSQL_ROOT_HOST: "%"
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./deploy/mysql/10-runtime-grants.sh:/docker-entrypoint-initdb.d/10-runtime-grants.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    networks:
+      - data-network
+    security_opt:
+      - no-new-privileges:true
+    logging: *json-logging
+
+  redis:
+    image: redis:8.8.3-alpine3.23
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env.compose}
+      TZ: Asia/Shanghai
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env.compose}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a $$REDIS_PASSWORD ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks:
+      - data-network
+    security_opt:
+      - no-new-privileges:true
+    logging: *json-logging
+
+  migrate:
+    build:
+      context: ./defense-assessment
+    image: ai-interview-backend:${APP_IMAGE_TAG:-local}
+    command: ["migrate"]
+    environment: *migration-environment
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /app/logs:mode=1777
+    networks:
+      - data-network
+    security_opt:
+      - no-new-privileges:true
+    logging: *json-logging
+
+  backend:
+    build:
+      context: ./defense-assessment
+    image: ai-interview-backend:${APP_IMAGE_TAG:-local}
+    environment:
+      <<: *backend-environment
+      SCHEDULER_START: ${SCHEDULER_START:-start}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8081}:8081"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    volumes:
+      - backend-logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - app-network
+      - data-network
+    security_opt:
+      - no-new-privileges:true
+    logging: *json-logging
+
+  frontend:
+    build:
+      context: ./defense-system
+      args:
+        VUE_APP_BASE_API: /api
+        VUE_APP_BASE_TEXT_WS: /ws/defense-assessment
+        VUE_APP_BASE_VOICE_WS: /ws/voice/defense-assessment
+        VUE_APP_BASE_PLAYVOICE_WS: /ws/voice-play/defense-assessment
+    image: ai-interview-frontend:${APP_IMAGE_TAG:-local}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3004}:8080"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /var/cache/nginx:mode=1777
+    restart: unless-stopped
+    networks:
+      - app-network
+    security_opt:
+      - no-new-privileges:true
+    logging: *json-logging
+
+volumes:
+  mysql-data:
+  redis-data:
+  backend-logs:
+
+networks:
+  app-network:
+  data-network:
+    internal: true

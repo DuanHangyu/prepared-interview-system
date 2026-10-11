@@ -1,0 +1,8 @@
+-- Deprecated safety stub.
+--
+-- The schema is managed by Flyway migrations under:
+--   defense-assessment/src/main/resources/db/migration
+--
+-- Start the backend against an empty database to initialize it, or against an
+-- existing database to baseline and upgrade it. This file intentionally makes
+-- no changes so that an old local command cannot drop application data.

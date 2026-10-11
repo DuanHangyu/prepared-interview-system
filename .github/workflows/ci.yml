@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Reject newly introduced vulnerable dependencies
+        uses: actions/dependency-review-action@v5
+        with:
+          fail-on-severity: high
+
+  backend:
+    runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.4.10
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -uroot --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    defaults:
+      run:
+        working-directory: defense-assessment
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: defense-assessment/pom.xml
+      - name: Run backend verification
+        run: ./mvnw --batch-mode --no-transfer-progress clean verify
+      - name: Run MySQL migration and concurrency integration tests
+        env:
+          MYSQL_INTEGRATION_SERVER_URL: jdbc:mysql://127.0.0.1:3306/?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+          MYSQL_INTEGRATION_USERNAME: root
+          MYSQL_INTEGRATION_PASSWORD: ""
+        run: >-
+          ./mvnw --batch-mode --no-transfer-progress
+          -Dtest=DatabaseMigrationMySqlIT,InterviewConcurrencyMySqlIT,InterviewLifecycleTransactionMySqlIT,DataRetentionMySqlIT,ManagedObjectCleanupMySqlIT
+          test
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: defense-system
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.3
+          cache: npm
+          cache-dependency-path: defense-system/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Audit all dependencies
+        run: npm audit --audit-level=high
+      - name: Type-check
+        run: npm run typecheck
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
+      - name: Build production assets
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser tests
+        run: npm run test:e2e
+
+  containers:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate deployment configuration
+        run: docker compose --env-file .env.compose.example config --quiet
+      - name: Build pinned application images
+        run: docker compose --env-file .env.compose.example build backend frontend

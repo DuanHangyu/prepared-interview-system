@@ -1,0 +1,79 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      idle-timeout: 300000         # 空闲连接超时时间（ms）
+      max-lifetime: 240000        # 连接最大存活时间（ms）
+      connection-timeout: 30000    # 获取连接的超时时间（ms）
+      keepalive-time: 300000
+      auto-commit: true
+    # MySql 8.0以上版本
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 部署环境必须显式提供数据库地址，避免误连历史公共主机
+    jdbc-url: ${DB_JDBC_URL}
+    url: ${spring.datasource.jdbc-url}
+    username: ${DB_USERNAME:defense}
+    password: ${DB_PASSWORD:}
+  data:
+    redis:
+      # Redis数据库索引（默认为0）
+      database: 1
+      # Redis服务器地址
+      host: ${REDIS_HOST:127.0.0.1}
+      # Redis服务器连接端口
+      port: 6379
+      # Redis服务器连接密码（默认为空）
+      password: ${REDIS_PASSWORD:}
+      # 连接超时时间
+      timeout: 20000
+      lettuce:
+        pool:
+          # 连接池最大连接数
+          max-active: 20
+          # 连接池最大阻塞等待时间（使用负值表示没有限制）
+          max-wait: -1ms
+          # 连接池中的最大空闲连接
+          max-idle: 10
+          # 连接池中的最小空闲连接
+          min-idle: 2
+          time-between-eviction-runs: 60s # 空闲连接验证/失效清除线程运行间隔
+
+dashscope:
+  base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  api-key: ${DASHSCOPE_API_KEY:}
+  enable-thinking: ${DASHSCOPE_ENABLE_THINKING:false}
+  realtime:
+    enabled: ${DASHSCOPE_REALTIME_ENABLED:true}
+    url: ${DASHSCOPE_REALTIME_URL:wss://dashscope.aliyuncs.com/api-ws/v1/realtime}
+    model: ${DASHSCOPE_REALTIME_MODEL:qwen3.5-omni-flash-realtime}
+    voice: ${DASHSCOPE_REALTIME_VOICE:Ethan}
+    transcript-wait-ms: ${DASHSCOPE_REALTIME_TRANSCRIPT_WAIT_MS:5000}
+    response-wait-ms: ${DASHSCOPE_REALTIME_RESPONSE_WAIT_MS:20000}
+    voice-output-enabled: ${DASHSCOPE_REALTIME_VOICE_OUTPUT_ENABLED:true}
+    voice-output-wait-ms: ${DASHSCOPE_REALTIME_VOICE_OUTPUT_WAIT_MS:12000}
+  models:
+    text: qwen3.6-plus
+    structured: ${DASHSCOPE_STRUCTURED_MODEL:qwen3.7-plus}
+    omni: qwen3-omni-flash
+    doc: qwen-long
+  audio:
+    voice: Cherry
+    format: wav
+
+## 阿里云oss存储
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT:oss-ap-southeast-1.aliyuncs.com}
+    accessKeyId: ${ALIYUN_OSS_ACCESS_KEY_ID:}
+    accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET:}
+    bucketName: ${ALIYUN_OSS_BUCKET:defense-assessment-new}
+
+jetcache:
+  statIntervalMinutes: 15
+  areaInCacheName: false
+  local:
+    default:
+      type: caffeine #other choose：caffeine
+      keyConvertor: jackson #other choose：fastjson/jackson
+      limit: 100
+      expireAfterWriteInMillis: 60000

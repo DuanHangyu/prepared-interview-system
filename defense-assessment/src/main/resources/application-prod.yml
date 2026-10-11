@@ -1,0 +1,84 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      validation-timeout: 5000
+      keepalive-time: 300000
+      auto-commit: true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    jdbc-url: ${DB_JDBC_URL}
+    url: ${spring.datasource.jdbc-url}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      database: 0
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      timeout: 5000
+      lettuce:
+        pool:
+          max-active: 20
+          max-wait: 2s
+          max-idle: 10
+          min-idle: 2
+          time-between-eviction-runs: 60s
+
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}
+
+dashscope:
+  base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  api-key: ${DASHSCOPE_API_KEY}
+  enable-thinking: ${DASHSCOPE_ENABLE_THINKING:false}
+  realtime:
+    enabled: ${DASHSCOPE_REALTIME_ENABLED:true}
+    url: ${DASHSCOPE_REALTIME_URL:wss://dashscope.aliyuncs.com/api-ws/v1/realtime}
+    model: ${DASHSCOPE_REALTIME_MODEL:qwen3.5-omni-flash-realtime}
+    voice: ${DASHSCOPE_REALTIME_VOICE:Ethan}
+    transcript-wait-ms: ${DASHSCOPE_REALTIME_TRANSCRIPT_WAIT_MS:5000}
+    response-wait-ms: ${DASHSCOPE_REALTIME_RESPONSE_WAIT_MS:20000}
+    voice-output-enabled: ${DASHSCOPE_REALTIME_VOICE_OUTPUT_ENABLED:true}
+    voice-output-wait-ms: ${DASHSCOPE_REALTIME_VOICE_OUTPUT_WAIT_MS:12000}
+  models:
+    text: ${DASHSCOPE_TEXT_MODEL:qwen3.6-plus}
+    structured: ${DASHSCOPE_STRUCTURED_MODEL:qwen3.7-plus}
+    omni: ${DASHSCOPE_OMNI_MODEL:qwen3-omni-flash}
+    doc: ${DASHSCOPE_DOC_MODEL:qwen-long}
+  audio:
+    voice: ${DASHSCOPE_AUDIO_VOICE:Cherry}
+    format: ${DASHSCOPE_AUDIO_FORMAT:wav}
+
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT}
+    accessKeyId: ${ALIYUN_OSS_ACCESS_KEY_ID}
+    accessKeySecret: ${ALIYUN_OSS_ACCESS_KEY_SECRET}
+    bucketName: ${ALIYUN_OSS_BUCKET}
+
+jetcache:
+  statIntervalMinutes: 15
+  areaInCacheName: false
+  local:
+    default:
+      type: caffeine
+      keyConvertor: jackson
+      limit: 100
+      expireAfterWriteInMillis: 60000
+
+# Nginx is the only public ingress in the production topology. Let Tomcat's
+# RemoteIpValve resolve X-Forwarded-For from trusted private-network proxies so
+# login and AI rate limits are per client instead of shared by the proxy.
+server:
+  forward-headers-strategy: native
+
+scheduler:
+  start: ${SCHEDULER_START:stop}
